@@ -7,13 +7,19 @@ from syncify.spotify.Spotify_track_info import (
 )
 
 
+# Default test playlist URL (your Iraqi playlist)
+TEST_PLAYLIST_URLS = [
+    "https://open.spotify.com/playlist/5YOevUTnavVClJ0hAslu0N",
+]
+
+
 def fetch_playlist_details(playlist_url: str):
     """
     Fetch Spotify playlist title and track URLs using SpotifyPlaylistInfo.
     ChromeDriver is managed automatically via webdriver-manager.
 
     Args:
-        playlist_url: Full Spotify playlist URL (e.g. https://open.spotify.com/playlist/...).
+        playlist_url: Full Spotify playlist URL (e.g. https://open.spotify.com/playlist/...).  # noqa: E501
 
     Returns:
         PlaylistDetails with .title and .track_urls.
@@ -41,26 +47,43 @@ def test_track_information(spotify_track_url: str) -> None:
     print(f"YouTube URL: https://www.youtube.com/watch?v={video_id}")
 
 
+def run_for_urls(urls: list[str]) -> None:
+    """
+    For each given URL, detect its type and print information.
+
+    - For playlist URLs: fetch playlist title and all track URLs.
+    - For track URLs: resolve and print the first matching YouTube video ID.
+    """
+    for index, url in enumerate(urls, start=1):
+        link_type = get_spotify_link_type(url)
+
+        print("=" * 80)
+        print(f"[{index}] URL: {url}")
+        print(f"Type: {link_type}")
+
+        if link_type == "Playlist":
+            details = fetch_playlist_details(url)
+            print(f"Playlist title : {details.title}")
+            print(f"Number of tracks: {len(details.track_urls)}")
+            print("Track URLs:")
+            for i, track_url in enumerate(details.track_urls, 1):
+                print(f"  {i:>3}. {track_url}")
+
+        elif link_type == "Track":
+            test_track_information(url)
+
+        else:
+            print("Provided URL is not a valid Spotify track or playlist URL.")
+
+
 if __name__ == "__main__":
     import sys
 
-    if len(sys.argv) < 2:
-        print("Usage: python main.py <spotify_playlist_or_track_url>")
-        sys.exit(1)
-
-    url = sys.argv[1]
-    link_type = get_spotify_link_type(url)
-
-    if link_type == "Playlist":
-        print(f"Fetching playlist details for: {url}")
-        details = fetch_playlist_details(url)
-        print(f"Playlist: {details.title}")
-        print(f"Tracks:   {len(details.track_urls)}")
-        for i, track_url in enumerate(details.track_urls, 1):
-            print(f"  {i:>3}. {track_url}")
-    elif link_type == "Track":
-        print(f"Testing track information gathering for: {url}")
-        test_track_information(url)
+    # If user passes URLs on the command line, use those.
+    # Otherwise, fall back to the built-in test playlist URL(s).
+    if len(sys.argv) > 1:
+        input_urls = sys.argv[1:]
     else:
-        print("Provided URL is not a valid Spotify track or playlist URL.")
-        sys.exit(1)
+        input_urls = TEST_PLAYLIST_URLS
+
+    run_for_urls(input_urls)

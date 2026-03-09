@@ -19,9 +19,9 @@ from mutagen.id3 import ID3, TIT2, TPE1, TALB, TCON, TDRC
 
 from syncify.spotify.Spotify_track_info import (
     is_spotify_link,
-    extract_youtube_video_id,
     is_valid_youtube_url,
-    grape_youtube_video_id_from_spotify_url,
+    get_spotify_track_details_from_url,
+    populate_youtube_details_for_track,
 )
 
 
@@ -217,8 +217,10 @@ def add_spotify_song(
 
     LOG.debug("Processing Spotify URL: %s", spotify_url)
 
-    # 1) Resolve YouTube video ID via Spotify page + YouTube search
-    video_id = grape_youtube_video_id_from_spotify_url(spotify_url)
+    # 1) Resolve Spotify track details, then YouTube video via separate helper
+    track_details = get_spotify_track_details_from_url(spotify_url)
+    track_details = populate_youtube_details_for_track(track_details)
+    video_id = track_details.youtube_video_id
     if not video_id:
         raise RuntimeError(f"Could not find a YouTube video for: {spotify_url}")
 

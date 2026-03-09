@@ -4,7 +4,7 @@ from syncify.spotify.Spotify_playlist_info import SpotifyPlaylistInfo
 from syncify.spotify.Spotify_track_info import (
     TrackDetails,
     get_spotify_link_type,
-    grape_youtube_video_id_from_spotify_url,
+    get_spotify_track_details_from_url,
 )
 
 
@@ -36,12 +36,12 @@ def test_track_information(spotify_track_url: str) -> None:
     It resolves the Spotify track URL to a TrackDetails model that includes:
     - the original Spotify URL
     - the detected track title and artist
-    - the first matching YouTube video ID and full URL (when available)
+    - the extracted track image URL
     """
     if get_spotify_link_type(spotify_track_url) != "Track":
         raise ValueError("URL must be a Spotify track URL.")
 
-    details: TrackDetails = grape_youtube_video_id_from_spotify_url(spotify_track_url)
+    details: TrackDetails = get_spotify_track_details_from_url(spotify_track_url)
 
     # Example usage of the TrackDetails model:
     print("Spotify track details:")
@@ -49,12 +49,7 @@ def test_track_information(spotify_track_url: str) -> None:
     print(f"  Track ID         : {getattr(details, 'track_id', '') or '(empty)'}")
     print(f"  Track title      : {details.track_title or '(empty)'}")
     print(f"  Artist           : {details.artist_title or '(empty)'}")
-    print(f"  YouTube video ID : {details.youtube_video_id or '(empty)'}")
-    print(f"  YouTube URL      : {details.youtube_url or '(empty)'}")
     print(f"  Track image URL  : {details.track_image_url or '(empty)'}")
-
-    if not details.youtube_video_id:
-        print("Could not resolve a YouTube video ID for this track.")
 
 
 def run_for_urls(urls: list[str]) -> None:

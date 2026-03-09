@@ -2,7 +2,7 @@
 Spotify_track_info.py
 ---------------------
 Lightweight helpers for working with Spotify track / playlist URLs and for
-resolving a Spotify track URL to a YouTube video ID.
+extracting metadata for a single Spotify track.
 
 This module is **Spotify‑only**: it does not download audio or touch yt-dlp.
 Downloading and further processing are handled in a separate `youtube` module.
@@ -167,7 +167,7 @@ def populate_youtube_details_for_track(details: TrackDetails) -> TrackDetails:
 
     return details
 
-def grape_youtube_video_id_from_spotify_url(spotify_url: str) -> TrackDetails:
+def get_spotify_track_details_from_url(spotify_url: str) -> TrackDetails:
     """
     Open the Spotify track page with Selenium and extract track metadata
     (track ID, title, artist, and artwork URL).
@@ -221,7 +221,7 @@ def grape_youtube_video_id_from_spotify_url(spotify_url: str) -> TrackDetails:
         )
 
     except Exception as exc:
-        LOG.debug("Error in grape_youtube_video_id_from_spotify_url: %s", exc)
+        LOG.debug("Error in get_spotify_track_details_from_url: %s", exc)
     finally:
         driver.quit()
 

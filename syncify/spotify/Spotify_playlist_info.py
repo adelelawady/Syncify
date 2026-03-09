@@ -24,9 +24,7 @@ import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
@@ -44,7 +42,8 @@ PLAYLIST_REGEX = r"^https://open\.spotify\.com/playlist/([a-zA-Z0-9]+)$"
 @dataclass
 class PlaylistDetails:
     """Holds the result of a playlist scrape."""
-    title: str
+    # Use empty defaults so missing data is represented by empty fields.
+    title: str = ""
     track_urls: List[str] = field(default_factory=list)
 
     def __repr__(self) -> str:
@@ -213,9 +212,13 @@ class SpotifyPlaylistInfo:
     # Private helpers
     # ------------------------------------------------------------------
     def _build_driver(self) -> webdriver.Chrome:
-        """Construct and return a headless Chrome WebDriver."""
+        """Construct and return a headless Chrome WebDriver.
+
+        We rely on Selenium Manager to locate a matching ChromeDriver
+        for the locally installed Chrome (no webdriver-manager needed).
+        """
         chrome_options = Options()
-        #chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--headless")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--incognito")
@@ -227,8 +230,8 @@ class SpotifyPlaylistInfo:
         chrome_options.add_argument("--remote-allow-origins=*")
         chrome_options.add_argument("--disable-blink-features=AutomationControlled")
 
-        service = Service(ChromeDriverManager().install())
-        return webdriver.Chrome(service=service, options=chrome_options)
+        # Selenium 4+ will download / locate the correct driver automatically.
+        return webdriver.Chrome(options=chrome_options)
 
 
 # ---------------------------------------------------------------------------

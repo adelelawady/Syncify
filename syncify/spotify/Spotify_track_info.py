@@ -10,25 +10,27 @@ Downloading and further processing are handled in a separate `youtube` module.
 
 import logging
 import re
+from dataclasses import dataclass
 from typing import Optional
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
 
 
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
+# Use a module-specific logger and keep external driver logs quiet.
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
 )
 LOG = logging.getLogger("SpotifyTrackInfo")
+logging.getLogger("WDM").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 
 # ---------------------------------------------------------------------------
@@ -42,6 +44,25 @@ YOUTUBE_URL_PATTERN = re.compile(YOUTUBE_URL_REGEX)
 
 TRACK_REGEX = r"^https://open\.spotify\.com/track/([a-zA-Z0-9]+)$"
 PLAYLIST_REGEX = r"^https://open\.spotify\.com/playlist/([a-zA-Z0-9]+)$"
+
+
+# ---------------------------------------------------------------------------
+# Data model for track details
+# ---------------------------------------------------------------------------
+@dataclass
+class TrackDetails:
+    """
+    Holds all gathered information for a single Spotify track.
+
+    All string fields default to the empty string so that missing data
+    is represented as empty fields instead of None.
+    """
+
+    spotify_url: str = ""
+    track_title: str = ""
+    artist_title: str = ""
+    youtube_video_id: str = ""
+    youtube_url: str = ""
 
 
 def is_spotify_link(url: str) -> bool:
@@ -70,15 +91,17 @@ def is_valid_youtube_url(url: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Selenium-based scraping  (uses webdriver-manager instead of a hard path)
+# Selenium-based scraping
 # ---------------------------------------------------------------------------
 def _build_chrome_driver() -> webdriver.Chrome:
     """
-    Create a headless Chrome WebDriver using webdriver-manager
-    (no manual chromedriver path needed).
+    Create a headless Chrome WebDriver.
+
+    We rely on Selenium Manager to locate a matching ChromeDriver for
+    the locally installed Chrome (no webdriver-manager needed).
     """
     options = Options()
-    # options.add_argument("--headless")
+    options.add_argument("--headless")
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--incognito")
@@ -89,11 +112,11 @@ def _build_chrome_driver() -> webdriver.Chrome:
     options.add_argument("--remote-allow-origins=*")
     options.add_argument("--disable-dev-shm-usage")
 
-    service = Service(ChromeDriverManager().install())
-    return webdriver.Chrome(service=service, options=options)
+    # Selenium 4+ will download / locate the correct driver automatically.
+    return webdriver.Chrome(options=options)
 
 
-def grape_youtube_video_id_from_spotify_url(spotify_url: str) -> Optional[str]:
+def grape_youtube_video_id_from_spotify_url(spotify_url: str) -> TrackDetails:
     """
     Open the Spotify track page with Selenium, extract track name + artist,
     search YouTube, and return the first non‑ad video ID.
@@ -101,9 +124,13 @@ def grape_youtube_video_id_from_spotify_url(spotify_url: str) -> Optional[str]:
     Mirrors the original Java method: GrapeYoutubeVideoIdFromSpotifyUrl().
     This only discovers the YouTube ID; downloading happens in the
     separate `youtube` module.
+
+    Returns:
+        TrackDetails: populated with any information we were able to gather.
+        If some values cannot be resolved, those fields remain empty strings.
     """
     driver = _build_chrome_driver()
-    video_id: Optional[str] = None
+    details = TrackDetails(spotify_url=spotify_url)
 
     try:
         wait = WebDriverWait(driver, 30)
@@ -119,16 +146,18 @@ def grape_youtube_video_id_from_spotify_url(spotify_url: str) -> Optional[str]:
             By.CSS_SELECTOR, 'a[data-testid="creator-link"]'
         )
 
-        track_title = track_name_el.text.strip()
-        artist_title = track_artist_el.text.strip()
-        LOG.debug("Spotify track: '%s' by '%s'", track_title, artist_title)
+        details.track_title = track_name_el.text.strip()
+        details.artist_title = track_artist_el.text.strip()
+        LOG.debug(
+            "Spotify track: '%s' by '%s'", details.track_title, details.artist_title
+        )
 
         # ── Step 2: YouTube search ────────────────────────────────────────
         driver.get("https://www.youtube.com/")
         search_box = wait.until(
             EC.presence_of_element_located((By.NAME, "search_query"))
         )
-        search_box.send_keys(f"{track_title} {artist_title}")
+        search_box.send_keys(f"{details.track_title} {details.artist_title}")
         search_box.submit()
 
         # Wait briefly for results to render
@@ -146,15 +175,16 @@ def grape_youtube_video_id_from_spotify_url(spotify_url: str) -> Optional[str]:
 
         if first_result:
             title_element = first_result.find_element(By.ID, "video-title")
-            video_url_raw = title_element.get_attribute("href")
+            video_url_raw = title_element.get_attribute("href") or ""
+            details.youtube_url = video_url_raw
             LOG.debug("Found YouTube URL: %s", video_url_raw)
-            video_id = extract_youtube_video_id(video_url_raw)
+            details.youtube_video_id = extract_youtube_video_id(video_url_raw) or ""
 
-        LOG.debug("YouTube video ID: %s", video_id)
-        LOG.debug("YouTube video URL: %s", video_url_raw)
-        LOG.debug("Spotify URL: %s", spotify_url)
-        LOG.debug("Track title: %s", track_title)
-        LOG.debug("Artist: %s", artist_title)
+        LOG.debug("YouTube video ID: %s", details.youtube_video_id)
+        LOG.debug("YouTube video URL: %s", details.youtube_url)
+        LOG.debug("Spotify URL: %s", details.spotify_url)
+        LOG.debug("Track title: %s", details.track_title)
+        LOG.debug("Artist: %s", details.artist_title)
 
 
     except Exception as exc:
@@ -162,4 +192,4 @@ def grape_youtube_video_id_from_spotify_url(spotify_url: str) -> Optional[str]:
     finally:
         driver.quit()
 
-    return video_id
+    return details

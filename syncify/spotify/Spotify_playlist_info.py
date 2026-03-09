@@ -43,6 +43,8 @@ PLAYLIST_REGEX = r"^https://open\.spotify\.com/playlist/([a-zA-Z0-9]+)$"
 class PlaylistDetails:
     """Holds the result of a playlist scrape."""
     # Use empty defaults so missing data is represented by empty fields.
+    playlist_url: str = ""
+    playlist_id: str = ""
     title: str = ""
     track_urls: List[str] = field(default_factory=list)
 
@@ -140,6 +142,12 @@ class SpotifyPlaylistInfo:
         if get_spotify_link_type(url) != "Playlist":
             raise ValueError(f"{url!r} is not a Spotify playlist link.")
 
+        # Initialise details with URL and (if possible) playlist ID extracted from it.
+        details = PlaylistDetails(playlist_url=url)
+        match = re.match(PLAYLIST_REGEX, url)
+        if match:
+            details.playlist_id = match.group(1)
+
         driver = self._build_driver()
         links_found: List[str] = []
 
@@ -206,7 +214,10 @@ class SpotifyPlaylistInfo:
         finally:
             driver.quit()
 
-        return PlaylistDetails(title=self.playlist_title, track_urls=links_found)
+        details.title = self.playlist_title
+        details.track_urls = links_found
+
+        return details
 
     # ------------------------------------------------------------------
     # Private helpers

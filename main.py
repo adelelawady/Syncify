@@ -46,6 +46,7 @@ def test_track_information(spotify_track_url: str) -> None:
     # Example usage of the TrackDetails model:
     print("Spotify track details:")
     print(f"  Spotify URL      : {details.spotify_url or '(empty)'}")
+    print(f"  Track ID         : {getattr(details, 'track_id', '') or '(empty)'}")
     print(f"  Track title      : {details.track_title or '(empty)'}")
     print(f"  Artist           : {details.artist_title or '(empty)'}")
     print(f"  YouTube video ID : {details.youtube_video_id or '(empty)'}")
@@ -74,6 +75,8 @@ def run_for_urls(urls: list[str]) -> None:
 
             # Example usage of the PlaylistDetails model:
             print("Playlist details:")
+            print(f"  Playlist URL    : {getattr(details, 'playlist_url', '') or '(empty)'}")
+            print(f"  Playlist ID     : {getattr(details, 'playlist_id', '') or '(empty)'}")
             print(f"  Playlist title  : {details.title or '(empty)'}")
             print(f"  Number of tracks: {len(details.track_urls)}")
             print("  Track URLs:")

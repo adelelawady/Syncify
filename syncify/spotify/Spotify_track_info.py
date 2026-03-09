@@ -59,8 +59,10 @@ class TrackDetails:
     """
 
     spotify_url: str = ""
+    track_id: str = ""
     track_title: str = ""
     artist_title: str = ""
+    track_image_url: str = ""
     youtube_video_id: str = ""
     youtube_url: str = ""
 
@@ -132,6 +134,11 @@ def grape_youtube_video_id_from_spotify_url(spotify_url: str) -> TrackDetails:
     driver = _build_chrome_driver()
     details = TrackDetails(spotify_url=spotify_url)
 
+    # Try to extract the track ID directly from the URL using TRACK_REGEX.
+    match = re.match(TRACK_REGEX, spotify_url)
+    if match:
+        details.track_id = match.group(1)
+
     try:
         wait = WebDriverWait(driver, 30)
 
@@ -145,6 +152,18 @@ def grape_youtube_video_id_from_spotify_url(spotify_url: str) -> TrackDetails:
         track_artist_el = driver.find_element(
             By.CSS_SELECTOR, 'a[data-testid="creator-link"]'
         )
+        # Try to grab the main track artwork image from the header section.
+        # Avoid relying on the dynamic class name (e.g. "fNnrSm2k2IonbI9c");
+        # instead, use the stable "contentSpacing" class and Spotify image URL.
+        try:
+            track_img_el = driver.find_element(
+                By.CSS_SELECTOR,
+                "div.contentSpacing img[loading='lazy'][src^='https://i.scdn.co/image/']",
+            )
+            details.track_image_url = track_img_el.get_attribute("src") or ""
+        except Exception:
+            # Image URL is optional; keep it empty if not found.
+            details.track_image_url = ""
 
         details.track_title = track_name_el.text.strip()
         details.artist_title = track_artist_el.text.strip()
@@ -180,11 +199,6 @@ def grape_youtube_video_id_from_spotify_url(spotify_url: str) -> TrackDetails:
             LOG.debug("Found YouTube URL: %s", video_url_raw)
             details.youtube_video_id = extract_youtube_video_id(video_url_raw) or ""
 
-        LOG.debug("YouTube video ID: %s", details.youtube_video_id)
-        LOG.debug("YouTube video URL: %s", details.youtube_url)
-        LOG.debug("Spotify URL: %s", details.spotify_url)
-        LOG.debug("Track title: %s", details.track_title)
-        LOG.debug("Artist: %s", details.artist_title)
 
 
     except Exception as exc:

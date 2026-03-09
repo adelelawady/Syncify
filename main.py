@@ -10,7 +10,7 @@ from syncify.spotify.Spotify_track_info import (
 
 # Default test playlist URL (your Iraqi playlist)
 TEST_PLAYLIST_URLS = [
-    "https://open.spotify.com/playlist/5YOevUTnavVClJ0hAslu0N","https://open.spotify.com/track/5nJ4Zzqc2UjwSaIcv7bGjx"
+   "https://open.spotify.com/track/5nJ4Zzqc2UjwSaIcv7bGjx"
 ]
 
 
@@ -51,6 +51,7 @@ def test_track_information(spotify_track_url: str) -> None:
     print(f"  Artist           : {details.artist_title or '(empty)'}")
     print(f"  YouTube video ID : {details.youtube_video_id or '(empty)'}")
     print(f"  YouTube URL      : {details.youtube_url or '(empty)'}")
+    print(f"  Track image URL  : {details.track_image_url or '(empty)'}")
 
     if not details.youtube_video_id:
         print("Could not resolve a YouTube video ID for this track.")

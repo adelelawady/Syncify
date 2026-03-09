@@ -175,9 +175,11 @@ class SpotifyPlaylistInfo:
             prev_count = 0
 
             for _ in range(max_scrolls):
-                # collect links currently in the DOM
+                # collect links currently in the DOM, but only from the main
+                # playlist tracklist (exclude the separate "Recommended" list).
                 rows = driver.find_elements(
-                    By.CSS_SELECTOR, 'div[data-testid="tracklist-row"]'
+                    By.CSS_SELECTOR,
+                    'div[data-testid="playlist-tracklist"] div[data-testid="tracklist-row"]',
                 )
                 for row in rows:
                     try:
@@ -200,10 +202,13 @@ class SpotifyPlaylistInfo:
                     stable_loops = 0
                     prev_count = current_count
 
-                # scroll to the last visible row to trigger loading more items
+                # scroll to the last visible row in the main playlist tracklist
+                # to trigger loading more items (and not the recommended rows)
                 driver.execute_script(
                     """
-                    const rows = document.querySelectorAll("div[data-testid='tracklist-row']");
+                    const rows = document.querySelectorAll(
+                        "div[data-testid='playlist-tracklist'] div[data-testid='tracklist-row']"
+                    );
                     if (rows.length) {
                         rows[rows.length - 1].scrollIntoView({ behavior: 'smooth', block: 'end' });
                     }

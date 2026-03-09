@@ -46,6 +46,7 @@ class PlaylistDetails:
     playlist_url: str = ""
     playlist_id: str = ""
     title: str = ""
+    playlist_image_url: str = ""
     track_urls: List[str] = field(default_factory=list)
 
     def __repr__(self) -> str:
@@ -162,6 +163,20 @@ class SpotifyPlaylistInfo:
             )
             self.playlist_title = title_el.text
 
+            # ---- grab playlist image URL (mosaic cover) ----
+            # The main playlist image is rendered inside a container with
+            # data-testid="playlist-image", which holds an <img> whose src is
+            # the mosaic URL like the one you provided.
+            playlist_image_url = ""
+            try:
+                image_el = driver.find_element(
+                    By.CSS_SELECTOR, 'div[data-testid="playlist-image"] img'
+                )
+                playlist_image_url = image_el.get_attribute("src") or ""
+            except Exception:
+                # If we fail to locate the image, keep the field empty.
+                playlist_image_url = ""
+
             # ---- scroll and collect track links, accounting for virtualized rows ----
             # The Spotify UI virtualizes the tracklist, so the number of DOM rows can
             # stay roughly constant while the actual songs change as you scroll.
@@ -220,6 +235,7 @@ class SpotifyPlaylistInfo:
             driver.quit()
 
         details.title = self.playlist_title
+        details.playlist_image_url = playlist_image_url
         details.track_urls = links_found
 
         return details

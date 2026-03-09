@@ -76,6 +76,7 @@ def run_for_urls(urls: list[str]) -> None:
             print(f"  Playlist ID     : {getattr(details, 'playlist_id', '') or '(empty)'}")
             print(f"  Playlist title  : {details.title or '(empty)'}")
             print(f"  Number of tracks: {len(details.track_urls)}")
+            print(f"  Playlist image URL: {details.playlist_image_url or '(empty)'}")
             print("  Track URLs:")
             for i, track_url in enumerate(details.track_urls, 1):
                 print(f"    {i:>3}. {track_url}")

@@ -30,10 +30,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 
 # ---------------------------------------------------------------------------
-# Regex constants
+# Regex constants (from shared utils)
 # ---------------------------------------------------------------------------
-TRACK_REGEX    = r"^https://open\.spotify\.com/track/([a-zA-Z0-9]+)$"
-PLAYLIST_REGEX = r"^https://open\.spotify\.com/playlist/([a-zA-Z0-9]+)$"
+from syncify.spotify.utils import get_link_type, is_valid_link, PLAYLIST_REGEX, TRACK_REGEX
 
 
 # ---------------------------------------------------------------------------
@@ -51,23 +50,6 @@ class PlaylistDetails:
 
     def __repr__(self) -> str:
         return f"PlaylistDetails(title={self.title!r}, tracks={len(self.track_urls)})"
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-def get_spotify_link_type(url: str) -> Optional[str]:
-    """Return 'Track', 'Playlist', or None."""
-    if re.match(TRACK_REGEX, url):
-        return "Track"
-    if re.match(PLAYLIST_REGEX, url):
-        return "Playlist"
-    return None
-
-
-def is_spotify_link(url: str) -> bool:
-    """Return True if *url* is a valid Spotify track or playlist URL."""
-    return bool(re.match(TRACK_REGEX, url) or re.match(PLAYLIST_REGEX, url))
 
 
 def get_song_name_from_url(url: str) -> str:
@@ -95,6 +77,22 @@ def get_song_name_from_url(url: str) -> str:
     if tag and tag.get("content"):
         return tag["content"]
     return "Song title not found."
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+def get_playlist(url: str) -> PlaylistDetails:
+    """
+    Fetch playlist details from a Spotify playlist URL.
+
+    Args:
+        url: Full Spotify playlist URL (e.g. https://open.spotify.com/playlist/...).
+
+    Returns:
+        PlaylistDetails with title, track_urls, playlist_image_url.
+    """
+    return SpotifyPlaylistInfo().get_playlist(url)
 
 
 # ---------------------------------------------------------------------------
@@ -126,7 +124,7 @@ class SpotifyPlaylistInfo:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
-    def get_playlist_details(self, url: str) -> PlaylistDetails:
+    def get_playlist(self, url: str) -> PlaylistDetails:
         """
         Scrape all track URLs and the title from a Spotify playlist page.
 
@@ -140,7 +138,7 @@ class SpotifyPlaylistInfo:
             ValueError: If *url* is not a Spotify playlist link.
             Exception:  On any Selenium / network error.
         """
-        if get_spotify_link_type(url) != "Playlist":
+        if get_link_type(url) != "Playlist":
             raise ValueError(f"{url!r} is not a Spotify playlist link.")
 
         # Initialise details with URL and (if possible) playlist ID extracted from it.
@@ -202,7 +200,7 @@ class SpotifyPlaylistInfo:
                             By.CSS_SELECTOR, 'a[data-testid="internal-track-link"]'
                         )
                         href = anchor.get_attribute("href") or ""
-                        if is_spotify_link(href) and href not in links_found:
+                        if is_valid_link(href) and href not in links_found:
                             links_found.append(href)
                     except Exception:
                         # Some rows may be ads or separators – skip them silently.
@@ -278,7 +276,7 @@ if __name__ == "__main__":
 
     playlist_url = sys.argv[1]
     scraper = SpotifyPlaylistInfo()
-    result = scraper.get_playlist_details(playlist_url)
+    result = scraper.get_playlist(playlist_url)
 
     print(f"Playlist : {result.title}")
     print(f"Tracks   : {len(result.track_urls)}")

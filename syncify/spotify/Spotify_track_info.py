@@ -70,15 +70,6 @@ def is_spotify_link(url: str) -> bool:
     return bool(re.match(TRACK_REGEX, url) or re.match(PLAYLIST_REGEX, url))
 
 
-def get_spotify_link_type(url: str) -> str:
-    """Return 'Track', 'Playlist', or 'Invalid' based on the URL contents."""
-    if "track" in url:
-        return "Track"
-    if "playlist" in url:
-        return "Playlist"
-    return "Invalid"
-
-
 def extract_youtube_video_id(url: str) -> Optional[str]:
     """Return the 11‑char YouTube video ID from a full URL, or None."""
     match = YOUTUBE_URL_PATTERN.match(url)
@@ -116,24 +107,21 @@ def _build_chrome_driver() -> webdriver.Chrome:
     return webdriver.Chrome(options=options)
 
 
-def get_spotify_track_details_from_url(spotify_url: str) -> TrackDetails:
+def get_track(url: str) -> TrackDetails:
     """
-    Open the Spotify track page with Selenium and extract track metadata
-    (track ID, title, artist, and artwork URL).
+    Fetch track metadata from a Spotify track URL.
 
-    YouTube search/population is intentionally **not** performed here anymore.
-    The returned `TrackDetails.youtube_url` and `.youtube_video_id` fields
-    are left empty until a separate helper is invoked.
+    Args:
+        url: Full Spotify track URL (e.g. https://open.spotify.com/track/...).
 
     Returns:
-        TrackDetails: populated with any information we were able to gather.
-        If some values cannot be resolved, those fields remain empty strings.
+        TrackDetails with track_id, track_title, artist_title, track_image_url.
     """
     driver = _build_chrome_driver()
-    details = TrackDetails(spotify_url=spotify_url)
+    details = TrackDetails(spotify_url=url)
 
     # Try to extract the track ID directly from the URL using TRACK_REGEX.
-    match = re.match(TRACK_REGEX, spotify_url)
+    match = re.match(TRACK_REGEX, url)
     if match:
         details.track_id = match.group(1)
 
@@ -141,7 +129,7 @@ def get_spotify_track_details_from_url(spotify_url: str) -> TrackDetails:
         wait = WebDriverWait(driver, 30)
 
         # ── Step 1: Spotify page ──────────────────────────────────────────
-        driver.get(spotify_url)
+        driver.get(url)
         track_name_el = wait.until(
             EC.presence_of_element_located(
                 (By.CSS_SELECTOR, 'span[data-testid="entityTitle"]')
@@ -170,7 +158,7 @@ def get_spotify_track_details_from_url(spotify_url: str) -> TrackDetails:
         )
 
     except Exception as exc:
-        LOG.debug("Error in get_spotify_track_details_from_url: %s", exc)
+        LOG.debug("Error in get_track: %s", exc)
     finally:
         driver.quit()
 

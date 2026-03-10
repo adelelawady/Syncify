@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 
 setup(
-    name="syncify",
+    name="syncify-py",
     version="1.0.0",
     description="Spotify track and playlist metadata library",
     long_description=open("README.md", encoding="utf-8").read(),

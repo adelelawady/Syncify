@@ -13,6 +13,9 @@ NOTE:
 ![Last commit](https://img.shields.io/github/last-commit/adelelawady/Syncify?style=for-the-badge)
 ![Issues](https://img.shields.io/github/issues/adelelawady/Syncify?style=for-the-badge)
 ![Top language](https://img.shields.io/github/languages/top/adelelawady/Syncify?style=for-the-badge)
+![PyPI - Version](https://img.shields.io/pypi/v/syncify-py?style=for-the-badge)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/syncify-py?style=for-the-badge)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/syncify-py?style=for-the-badge)
 ![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Selenium](https://img.shields.io/badge/Selenium-43B02A?style=for-the-badge&logo=selenium&logoColor=white)
 
@@ -57,6 +60,16 @@ NOTE:
 
 - **Python**: 3.9+ recommended (packaging allows older, but tested targets are 3.9–3.12)
 - **Google Chrome** installed (used by Selenium)
+
+### Install from PyPI (recommended)
+
+```bash
+pip install syncify-py
+```
+
+Then use:
+- **CLI**: `syncify ...`
+- **Python import**: `from syncify import ...`
 
 ### Install from GitHub (recommended)
 

@@ -27,12 +27,21 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 
 
 # ---------------------------------------------------------------------------
 # Regex constants (from shared utils)
 # ---------------------------------------------------------------------------
-from syncify.spotify.utils import get_link_type, is_valid_link, PLAYLIST_REGEX, TRACK_REGEX
+from syncify.spotify.utils import (
+    get_link_type,
+    is_valid_link,
+    PLAYLIST_REGEX,
+    TRACK_REGEX,
+    canonicalize_spotify_url,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +152,8 @@ class SpotifyPlaylistInfo:
 
         # Initialise details with URL and (if possible) playlist ID extracted from it.
         details = PlaylistDetails(playlist_url=url)
-        match = re.match(PLAYLIST_REGEX, url)
+        canonical = canonicalize_spotify_url(url)
+        match = re.match(PLAYLIST_REGEX, canonical)
         if match:
             details.playlist_id = match.group(1)
 
@@ -260,8 +270,13 @@ class SpotifyPlaylistInfo:
         chrome_options.add_argument("--remote-allow-origins=*")
         chrome_options.add_argument("--disable-blink-features=AutomationControlled")
 
-        # Selenium 4+ will download / locate the correct driver automatically.
-        return webdriver.Chrome(options=chrome_options)
+        # Prefer Selenium Manager (Selenium 4+) but fallback to webdriver-manager
+        # for environments where Selenium Manager isn't available / can't resolve.
+        try:
+            return webdriver.Chrome(options=chrome_options)
+        except WebDriverException:
+            service = Service(ChromeDriverManager().install())
+            return webdriver.Chrome(service=service, options=chrome_options)
 
 
 # ---------------------------------------------------------------------------

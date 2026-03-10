@@ -14,10 +14,19 @@ from dataclasses import dataclass
 from typing import Optional
 
 from selenium import webdriver
+from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+
+from syncify.spotify.utils import (
+    PLAYLIST_REGEX,
+    TRACK_REGEX,
+    canonicalize_spotify_url,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -42,10 +51,6 @@ YOUTUBE_URL_REGEX = (
 )
 YOUTUBE_URL_PATTERN = re.compile(YOUTUBE_URL_REGEX)
 
-TRACK_REGEX = r"^https://open\.spotify\.com/track/([a-zA-Z0-9]+)$"
-PLAYLIST_REGEX = r"^https://open\.spotify\.com/playlist/([a-zA-Z0-9]+)$"
-
-
 # ---------------------------------------------------------------------------
 # Data model for track details
 # ---------------------------------------------------------------------------
@@ -67,7 +72,8 @@ class TrackDetails:
 
 def is_spotify_link(url: str) -> bool:
     """Return True if *url* is a Spotify track or playlist URL."""
-    return bool(re.match(TRACK_REGEX, url) or re.match(PLAYLIST_REGEX, url))
+    canonical = canonicalize_spotify_url(url)
+    return bool(re.match(TRACK_REGEX, canonical) or re.match(PLAYLIST_REGEX, canonical))
 
 
 def extract_youtube_video_id(url: str) -> Optional[str]:
@@ -103,8 +109,13 @@ def _build_chrome_driver() -> webdriver.Chrome:
     options.add_argument("--remote-allow-origins=*")
     options.add_argument("--disable-dev-shm-usage")
 
-    # Selenium 4+ will download / locate the correct driver automatically.
-    return webdriver.Chrome(options=options)
+    # Prefer Selenium Manager (Selenium 4+) but fallback to webdriver-manager
+    # for environments where Selenium Manager isn't available / can't resolve.
+    try:
+        return webdriver.Chrome(options=options)
+    except WebDriverException:
+        service = Service(ChromeDriverManager().install())
+        return webdriver.Chrome(service=service, options=options)
 
 
 def get_track(url: str) -> TrackDetails:
@@ -121,7 +132,8 @@ def get_track(url: str) -> TrackDetails:
     details = TrackDetails(spotify_url=url)
 
     # Try to extract the track ID directly from the URL using TRACK_REGEX.
-    match = re.match(TRACK_REGEX, url)
+    canonical = canonicalize_spotify_url(url)
+    match = re.match(TRACK_REGEX, canonical)
     if match:
         details.track_id = match.group(1)
 

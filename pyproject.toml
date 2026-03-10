@@ -4,18 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "syncify"
-version = "0.1.0"
+version = "1.0.0"
 description = "Spotify track and playlist metadata library"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.7"
 license = { text = "MIT" }
-authors = [{ name = "Syncify" }]
+authors = [{ name = "adelelawady" }]
 keywords = ["spotify", "playlist", "track", "metadata"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",

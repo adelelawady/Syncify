@@ -10,7 +10,7 @@ from syncify.spotify.Spotify_track_info import (
 
 # Default test playlist URL (your Iraqi playlist)
 TEST_PLAYLIST_URLS = [
-   #"https://open.spotify.com/track/5nJ4Zzqc2UjwSaIcv7bGjx"
+   "https://open.spotify.com/track/5nJ4Zzqc2UjwSaIcv7bGjx",
    "https://open.spotify.com/playlist/5YOevUTnavVClJ0hAslu0N"
 ]
 

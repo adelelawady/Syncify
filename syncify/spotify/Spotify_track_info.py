@@ -63,8 +63,6 @@ class TrackDetails:
     track_title: str = ""
     artist_title: str = ""
     track_image_url: str = ""
-    youtube_video_id: str = ""
-    youtube_url: str = ""
 
 
 def is_spotify_link(url: str) -> bool:
@@ -117,55 +115,6 @@ def _build_chrome_driver() -> webdriver.Chrome:
     # Selenium 4+ will download / locate the correct driver automatically.
     return webdriver.Chrome(options=options)
 
-
-def populate_youtube_details_for_track(details: TrackDetails) -> TrackDetails:
-    """
-    Given a `TrackDetails` with at least `track_title` and `artist_title`
-    populated, perform a YouTube search and fill in `youtube_url` and
-    `youtube_video_id` with the first non‑ad result.
-    """
-    # If we don't have basic metadata, there's nothing sensible to search for.
-    if not details.track_title or not details.artist_title:
-        return details
-
-    driver = _build_chrome_driver()
-    try:
-        wait = WebDriverWait(driver, 30)
-
-        # ── Step 2: YouTube search ────────────────────────────────────────
-        driver.get("https://www.youtube.com/")
-        search_box = wait.until(
-            EC.presence_of_element_located((By.NAME, "search_query"))
-        )
-        search_box.send_keys(f"{details.track_title} {details.artist_title}")
-        search_box.submit()
-
-        # Wait briefly for results to render
-        import time
-
-        time.sleep(3)
-
-        # ── Step 3: First non‑ad result ───────────────────────────────────
-        results = driver.find_elements(By.CSS_SELECTOR, "ytd-video-renderer")
-        first_result = None
-        for result in results:
-            if not result.find_elements(By.CSS_SELECTOR, "ytd-ad-slot-renderer"):
-                first_result = result
-                break
-
-        if first_result:
-            title_element = first_result.find_element(By.ID, "video-title")
-            video_url_raw = title_element.get_attribute("href") or ""
-            details.youtube_url = video_url_raw
-            LOG.debug("Found YouTube URL: %s", video_url_raw)
-            details.youtube_video_id = extract_youtube_video_id(video_url_raw) or ""
-
-    except Exception as exc:
-        LOG.debug("Error in populate_youtube_details_for_track: %s", exc)
-    finally:
-        driver.quit()
-
-    return details
 
 def get_spotify_track_details_from_url(spotify_url: str) -> TrackDetails:
     """

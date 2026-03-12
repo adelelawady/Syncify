@@ -23,33 +23,35 @@ NOTE:
 
 # 🚀 Syncify
 
-**Syncify** is a Python **library + CLI** that fetches **Spotify track and playlist metadata** directly from `open.spotify.com` pages — great for quick metadata lookups, playlist introspection, and tooling where you don’t want to wire up OAuth.
+**Syncify** is a Python **library + CLI** that fetches **Spotify track, playlist, and liked-song metadata** directly from `open.spotify.com` pages — great for quick metadata lookups, playlist introspection, and tooling where you don't want to wire up OAuth.
 
-> **Heads up**: Syncify scrapes Spotify’s web UI (via Selenium). Selectors can break if Spotify updates their site.
+> **Heads up**: Syncify scrapes Spotify's web UI (via Selenium). Selectors can break if Spotify updates their site.
 
 ## ✨ Features
 
 - **Track metadata**: title, artist, cover image URL, and track ID from a track URL
 - **Playlist metadata**: playlist title, cover image URL, playlist ID, and **all track URLs**
-- **CLI-first**: run `syncify <url>` or `python -m syncify ...`
+- **Liked Songs**: scrape your full Spotify liked-songs library — opens a real browser window so you can log in, then collects every track URL automatically
+- **CLI-first**: run `syncify <url>`, `syncify --likes`, or `python -m syncify ...`
 - **Auto-detect URLs**: mix track + playlist URLs in one command
 - **No OAuth setup**: does **not** require Spotify API keys/tokens
 
 ## 🧠 How It Works
 
-- **Input**: Spotify track/playlist URLs (`https://open.spotify.com/track/...`, `https://open.spotify.com/playlist/...`)
+- **Input**: Spotify track/playlist URLs or `--likes` flag
 - **URL detection**: a lightweight regex-based detector determines whether each URL is a Track or Playlist
 - **Extraction**:
   - **Tracks**: Selenium loads the page and extracts title/artist/image from page elements
-  - **Playlists**: Selenium loads the page, scrolls through the track list, and collects every track link
+  - **Playlists**: Selenium loads the page in headless mode, scrolls through the virtualised track list, and collects every track link
+  - **Liked Songs**: Selenium opens a **visible** browser window, navigates to the Spotify login page, and polls the DOM for track elements — proceeding the instant your liked songs are rendered (no fixed waits)
 - **Output**:
-  - **Library**: returns dataclasses (`TrackDetails`, `PlaylistDetails`)
-  - **CLI**: prints a readable summary plus playlist track URLs
+  - **Library**: returns dataclasses (`TrackDetails`, `PlaylistDetails`, `LikesDetails`)
+  - **CLI**: prints a readable summary plus track URLs
 
 ## 🛠 Tech Stack
 
 - **Language**: Python
-- **Automation/scraping**: Selenium (headless Chrome)
+- **Automation/scraping**: Selenium (headless Chrome for tracks/playlists, visible Chrome for liked songs)
 - **Driver management**: `webdriver-manager` (fallback if Selenium driver resolution fails)
 - **HTML parsing (small helper)**: BeautifulSoup4
 - **HTTP**: `requests`
@@ -71,7 +73,7 @@ Then use:
 - **CLI**: `syncify ...`
 - **Python import**: `from syncify import ...`
 
-### Install from GitHub (recommended)
+### Install from GitHub
 
 ```bash
 pip install "git+https://github.com/adelelawady/Syncify.git"
@@ -98,11 +100,11 @@ Syncify has **no required environment variables**.
 ### Runtime requirements
 
 - **Chrome available on PATH / installed normally**
-- **Chromedriver** is handled automatically via Selenium’s driver resolution, with a fallback to `webdriver-manager`.
+- **Chromedriver** is handled automatically via Selenium's driver resolution, with a fallback to `webdriver-manager`.
 
 ### Troubleshooting
 
-- If Selenium can’t start Chrome:
+- If Selenium can't start Chrome:
   - Ensure Chrome is installed and up to date.
   - Try upgrading Selenium and webdriver-manager:
 
@@ -111,26 +113,49 @@ pip install -U selenium webdriver-manager
 ```
 
 - If playlist results are incomplete:
-  - Spotify’s UI loads tracks lazily; the scraper scrolls, but very large playlists may take longer.
+  - Spotify's UI loads tracks lazily; the scraper scrolls, but very large playlists may take longer.
+
+- If liked songs time out:
+  - Increase `--login-timeout` (default is 120 seconds).
+  - Make sure you complete the login — including any Spotify challenge/captcha pages — before the timeout expires.
 
 ## 🚀 Usage
 
-## **As a library**
+### As a library
 
 ```python
-from syncify import get_track, get_playlist
+from syncify import get_track, get_playlist, get_likes
 
+# Track
 track = get_track("https://open.spotify.com/track/5nJ4Zzqc2UjwSaIcv7bGjx")
 print(track.track_title, "-", track.artist_title)
 print(track.track_image_url)
 
+# Playlist
 playlist = get_playlist("https://open.spotify.com/playlist/5YOevUTnavVClJ0hAslu0N")
 print(playlist.title)
 print("Tracks:", len(playlist.track_urls))
 print(playlist.track_urls[:5])
+
+# Liked Songs  — opens a browser window for you to log in
+likes = get_likes()
+print(likes.total_tracks)
+for url in likes.track_urls:
+    print(url)
+
+# Give yourself more time to log in
+likes = get_likes(login_timeout=180)
 ```
 
-## **As a CLI**
+#### `get_likes()` parameters
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `login_timeout` | `int` | `120` | Seconds to wait for login + page render. Proceeds immediately once ready. |
+| `page_load_timeout` | `int` | `30` | Selenium page-load timeout in seconds. |
+| `scroll_pause` | `float` | `2.0` | Pause between scroll steps in seconds. |
+
+### As a CLI
 
 After installation, you can use either:
 
@@ -146,16 +171,24 @@ syncify https://open.spotify.com/playlist/5YOevUTnavVClJ0hAslu0N
 syncify --track https://open.spotify.com/track/...
 syncify --playlist https://open.spotify.com/playlist/...
 
+# Fetch your liked songs (opens a browser window for login)
+syncify --likes
+
+# Give yourself more time to log in
+syncify --likes --login-timeout 180
+
 # Multiple URLs (mixed types supported)
 syncify <url1> <url2> <url3>
 ```
 
-CLI flags:
+#### CLI flags
 
 ```bash
-syncify --track <URL>
-syncify --playlist <URL>
-syncify <URL> [URL ...]
+syncify --track <URL>                          # fetch a single track
+syncify --playlist <URL>                       # fetch a playlist
+syncify --likes                                # fetch your liked songs
+syncify --likes --login-timeout <SECONDS>      # custom login timeout (default 120)
+syncify <URL> [URL ...]                        # auto-detect, multiple URLs
 ```
 
 ## 📡 API Reference
@@ -182,7 +215,32 @@ Fetch metadata for a Spotify playlist URL.
 | `playlist_id` | `str` | Spotify playlist ID |
 | `title` | `str` | Playlist title |
 | `playlist_image_url` | `str` | Cover image URL |
-| `track_urls` | `list[str]` | Track URLs in the playlist |
+| `track_urls` | `list[str]` | All track URLs in the playlist |
+
+### `get_likes(login_timeout, page_load_timeout, scroll_pause) -> LikesDetails`
+
+Fetch all tracks from your Spotify Liked Songs library. Opens a visible browser window for authentication.
+
+| Field | Type | Description |
+|---|---:|---|
+| `track_urls` | `list[str]` | All liked track URLs |
+| `total_tracks` | `int` | Total number of liked tracks (property) |
+
+```python
+from syncify.spotify.Spotify_likes_info import LikesDetails, get_likes
+
+# Basic usage — opens browser, waits for login
+details = get_likes()
+
+# Give yourself more time to log in
+details = get_likes(login_timeout=180)
+
+print(details.total_tracks)
+for url in details.track_urls:
+    print(url)
+```
+
+> **Note**: `get_likes()` opens a real (non-headless) Chrome window and navigates to the Spotify login page. It polls the DOM every second and proceeds the instant your liked songs are rendered — you are never made to wait longer than necessary.
 
 ## 📂 Project Structure
 
@@ -194,6 +252,7 @@ Syncify/
 │  └─ spotify/
 │     ├─ Spotify_track_info.py
 │     ├─ Spotify_playlist_info.py
+│     ├─ Spotify_likes_info.py     # ← Liked Songs scraper
 │     ├─ utils.py
 │     └─ __init__.py
 ├─ main.py                     # Convenience script wrapper
@@ -217,12 +276,16 @@ pip install -e ".[dev]"
 
 # Run the CLI against a URL
 python -m syncify https://open.spotify.com/track/<id>
+
+# Fetch liked songs
+python -m syncify --likes --login-timeout 180
 ```
 
 Suggested checks:
 
 ```bash
 python -c "from syncify import get_track; print(get_track('https://open.spotify.com/track/<id>').track_title)"
+python -c "from syncify import get_likes; d = get_likes(); print(d.total_tracks)"
 ```
 
 ## 🤝 Contributing
@@ -235,7 +298,7 @@ Contributions are welcome!
   - Prefer small, well-scoped improvements to selectors and parsing logic
   - Avoid committing local artifacts (`.venv/`, `build/`, `syncify.egg-info/`)
 
-If you’re adding new scraping logic, please include:
+If you're adding new scraping logic, please include:
 - A sample Spotify URL (track/playlist) that the change targets
 - A note about which DOM selectors were relied on and why
 
